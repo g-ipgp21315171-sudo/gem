@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Penjaga Sejarah Negara - Sejarah Tahun 5 (MediaPipe Interaktif)</title>
+
+    <!-- Tailwind CSS untuk reka bentuk responsif dan moden -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Cinzel / Fredoka / Plus Jakarta Sans untuk gabungan nuansa warisan diraja & arked moden -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Fredoka:wght@600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tone.js untuk sintesis audio tradisional moden (gamelan/gong pentatonik) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <!-- Google MediaPipe Hands CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --royal-gold: #f59e0b;
+            --royal-crimson: #991b1b;
+            --royal-indigo: #1e1b4b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #090d16;
+        }
+
+        .font-heritage {
+            font-family: 'Cinzel', serif;
+        }
+
+        .font-arcade {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Butang berunsur warisan emas & arked 3D */
+        .btn-royal {
+            transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 6px 0 #78350f, 0 12px 24px rgba(0, 0, 0, 0.45);
+        }
+        .btn-royal:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.08);
+        }
+        .btn-royal:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #78350f, 0 4px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        @keyframes goldPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.35); }
+            50% { box-shadow: 0 0 38px rgba(245, 158, 11, 0.75); }
+        }
+        .gold-aura {
+            animation: goldPulse 3s infinite ease-in-out;
+        }
+
+        /* Skrol tersuai untuk senarai fakta sejarah */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(245, 158, 11, 0.6);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(245, 158, 11, 0.95);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative text-white bg-slate-950">
+
+    <!-- Elemen Video Tersembunyi untuk Webcam -->
+    <video id="webcamVideo" class="hidden" playsinline autoplay muted></video>
+
+    <!-- Kanvas Utama Permainan: Webcam Cermin, Landmarks Tangan, Portal Masa, Penukul Digital & Zarah Emas -->
+    <canvas id="gameCanvas" class="block w-full h-full object-cover"></canvas>
+
+    <!-- HUD ATAS SEMASA BERMAIN -->
+    <div id="hudLayer" class="hidden fixed top-0 left-0 w-full z-20 pointer-events-none p-3 sm:p-5 flex flex-col gap-2.5">
+        <!-- Bar Statistik Atas -->
+        <div class="flex flex-wrap items-center justify-between gap-2 max-w-6xl mx-auto w-full">
+            <!-- Skor & Kombo -->
+            <div class="flex items-center gap-3 bg-slate-950/85 backdrop-blur-md border-2 border-amber-500/60 rounded-2xl px-4 py-2 shadow-2xl">
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-widest text-amber-300 font-extrabold">Markah</span>
+                    <span id="scoreDisplay" class="font-arcade text-2xl sm:text-3xl font-bold text-amber-400 leading-none">0</span>
+                </div>
+                <div class="h-8 w-[2px] bg-amber-500/30"></div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-widest text-rose-300 font-extrabold">Kombo</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="comboDisplay" class="font-arcade text-xl sm:text-2xl font-bold text-emerald-400 leading-none">x1</span>
+                        <span id="comboBadge" class="hidden text-[11px] bg-amber-500/25 text-amber-200 border border-amber-400/50 px-2 py-0.5 rounded-full font-bold">⚡ Pantas!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pemasa Undur 60 Saat -->
+            <div id="timerBox" class="flex items-center gap-2.5 bg-slate-950/85 backdrop-blur-md border-2 border-amber-400/60 rounded-2xl px-5 py-2 shadow-2xl transition-colors duration-300">
+                <span class="text-2xl">⏳</span>
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] uppercase tracking-widest text-amber-300 font-extrabold">Masa Portal</span>
+                    <span id="timerDisplay" class="font-arcade text-2xl sm:text-3xl font-bold text-white leading-none">60s</span>
+                </div>
+            </div>
+
+            <!-- Status Tangan & Butang Kawalan -->
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <div class="hidden md:flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-amber-500/40 rounded-2xl px-3.5 py-2.5 text-xs font-bold">
+                    <span id="handStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="handStatusText" class="text-amber-100">Mengesan Penukul...</span>
+                </div>
+                <button id="muteBtn" title="Togol Audio Tradisional" class="bg-slate-950/85 hover:bg-slate-900 backdrop-blur-md border-2 border-amber-500/50 rounded-2xl p-3 text-white shadow-lg transition cursor-pointer">
+                    <span id="muteIcon" class="text-lg">🔊</span>
+                </button>
+                <button id="quitBtn" title="Tamatkan Sesi" class="bg-rose-700/90 hover:bg-rose-600 backdrop-blur-md border-2 border-rose-400/60 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg transition cursor-pointer">
+                    Tamat
+                </button>
+            </div>
+        </div>
+
+        <!-- Kad Soalan Sejarah Tahun 5 -->
+        <div class="max-w-4xl mx-auto w-full">
+            <div class="bg-gradient-to-r from-red-950/90 via-slate-950/95 to-indigo-950/90 backdrop-blur-md border-2 border-amber-400/80 rounded-3xl px-5 py-3.5 sm:px-7 sm:py-4 shadow-2xl text-center relative">
+                <div class="flex items-center justify-between text-xs font-bold text-amber-300 mb-1">
+                    <span id="questionTopicBadge" class="bg-amber-500/20 border border-amber-400/50 px-3 py-0.5 rounded-full">Sejarah Tahun 5 • Perjuangan Kemerdekaan</span>
+                    <span id="questionCountText" class="text-amber-100">Soalan 1</span>
+                </div>
+                <h2 id="questionText" class="font-arcade text-lg sm:text-2xl md:text-[25px] font-bold text-white leading-snug drop-shadow">
+                    Memuatkan soalan sejarah...
+                </h2>
+                <div class="mt-1.5 flex items-center justify-center gap-3 text-xs text-amber-200/90">
+                    <span>🔨 Ketuk portal jawapan dengan <strong>Genggam Tangan</strong> atau <strong>Cubit (Pinch)</strong> sebelum portal tertutup!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner Maklum Balas Segera -->
+    <div id="feedbackToast" class="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 opacity-0 scale-75 transition-all duration-200">
+        <div id="feedbackToastContent" class="px-7 py-3.5 rounded-3xl font-arcade text-2xl sm:text-4xl font-bold shadow-2xl border-4 text-center">
+            TEPAT! +100
+        </div>
+    </div>
+
+    <!-- SKRIN 1: MENU MULA & PANDUAN ISYARAT -->
+    <div id="startScreen" class="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+        <div class="max-w-3xl w-full bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border-2 border-amber-400/70 rounded-3xl p-6 sm:p-8 shadow-2xl gold-aura my-auto">
+            <!-- Tajuk Utama -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-400/60 text-amber-300 text-xs sm:text-sm font-extrabold px-4 py-1.5 rounded-full mb-3 uppercase tracking-widest">
+                    🇲🇾 Sejarah Tahun 5 • Kuiz Pantas Portal Masa
+                </div>
+                <h1 class="font-heritage text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-500 drop-shadow">
+                    PENJAGA SEJARAH NEGARA
+                </h1>
+                <p class="text-slate-200 text-sm sm:text-base mt-2.5 max-w-xl mx-auto leading-relaxed">
+                    Lindungi garis masa negara! Kenal pasti <strong>Tokoh Pejuang & Peristiwa Kemerdekaan Malaysia</strong> dan ketuk portal jawapan yang tepat sebelum portal tertutup!
+                </p>
+            </div>
+
+            <!-- Panduan Isyarat Penukul Digital (3 Kad Visual) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
+                <div class="bg-slate-900/90 border border-amber-400/40 rounded-2xl p-4 text-center flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-2xl mb-2.5">
+                        ☝️
+                    </div>
+                    <h3 class="font-arcade text-base font-bold text-amber-300">1. Halakan Penukul</h3>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Gerakkan <strong>jari telunjuk</strong> anda di hadapan kamera untuk mengarahkan penukul emas ke atas portal masa.
+                    </p>
+                </div>
+
+                <div class="bg-slate-900/90 border border-rose-400/40 rounded-2xl p-4 text-center flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-400/50 flex items-center justify-center text-2xl mb-2.5">
+                        ✊ / 🤏
+                    </div>
+                    <h3 class="font-arcade text-base font-bold text-rose-300">2. Ketuk Portal Masa</h3>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Buat isyarat <strong>Genggam Tangan (Fist)</strong> atau <strong>Cubit (Pinch)</strong> untuk menghentam portal jawapan sebelum masa portal tamat!
+                    </p>
+                </div>
+
+                <div class="bg-slate-900/90 border border-emerald-400/40 rounded-2xl p-4 text-center flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-2xl mb-2.5">
+                        ✨
+                    </div>
+                    <h3 class="font-arcade text-base font-bold text-emerald-300">3. Kombo & Fakta</h3>
+                    <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        Kumpul skor kombo emas dalam <strong>60 saat</strong> dan semak ringkasan fakta sejarah di akhir permainan.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bar Status Kamera -->
+            <div class="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3.5 mb-6 flex items-center justify-between gap-3 text-xs sm:text-sm">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">📷</span>
+                    <span id="cameraInitStatus" class="text-amber-100">
+                        Menyediakan kamera & pengesan tangan Google MediaPipe...
+                    </span>
+                </div>
+                <span class="hidden sm:inline-block text-[11px] bg-slate-900/80 text-amber-200 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                    Sokongan Tetikus / Sentuh tersedia
+                </span>
+            </div>
+
+            <!-- Butang Mula -->
+            <div class="flex justify-center">
+                <button id="startGameBtn" class="btn-royal w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-arcade text-xl sm:text-2xl font-bold tracking-wide flex items-center justify-center gap-3 cursor-pointer">
+                    <span>🔨 MULA MISI SEJARAH</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SKRIN 2: KEPUTUSAN & FAKTA SEJARAH RINGKAS -->
+    <div id="resultScreen" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg overflow-y-auto">
+        <div class="max-w-4xl w-full bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950 border-2 border-amber-400/70 rounded-3xl p-6 sm:p-8 shadow-2xl my-auto">
+            <!-- Header Keputusan -->
+            <div class="text-center mb-5">
+                <span id="rankBadge" class="inline-block bg-amber-500/20 border border-amber-400 text-amber-300 font-arcade text-sm sm:text-base font-bold px-4 py-1 rounded-full mb-2">
+                    🏅 PENJAGA WARISAN NEGARA
+                </span>
+                <h2 class="font-heritage text-3xl sm:text-4xl font-extrabold text-white">Misi Tamat! Laporan Penjaga Sejarah</h2>
+            </div>
+
+            <!-- Kad Statistik -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="bg-slate-900/90 border border-amber-400/50 rounded-2xl p-3.5 text-center">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Skor Akhir</div>
+                    <div id="finalScore" class="font-arcade text-2xl sm:text-3xl font-bold text-amber-400 mt-1">0</div>
+                </div>
+                <div class="bg-slate-900/90 border border-emerald-400/50 rounded-2xl p-3.5 text-center">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Ketukan Tepat</div>
+                    <div id="finalCorrect" class="font-arcade text-2xl sm:text-3xl font-bold text-emerald-400 mt-1">0 / 0</div>
+                </div>
+                <div class="bg-slate-900/90 border border-sky-400/50 rounded-2xl p-3.5 text-center">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Ketepatan</div>
+                    <div id="finalAccuracy" class="font-arcade text-2xl sm:text-3xl font-bold text-sky-400 mt-1">0%</div>
+                </div>
+                <div class="bg-slate-900/90 border border-rose-400/50 rounded-2xl p-3.5 text-center">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Kombo Tertinggi</div>
+                    <div id="finalMaxCombo" class="font-arcade text-2xl sm:text-3xl font-bold text-rose-400 mt-1">x1</div>
+                </div>
+            </div>
+
+            <!-- Senarai Semakan & Fakta Sejarah Ringkas -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="font-arcade text-lg sm:text-xl font-bold text-amber-300 flex items-center gap-2">
+                        <span>📜 Rekod Portal & Fakta Sejarah Ringkas</span>
+                    </h3>
+                    <span class="text-xs text-slate-400">Skrol untuk baca semua fakta</span>
+                </div>
+                <div id="analysisList" class="max-h-60 sm:max-h-64 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                    <!-- Dijana secara dinamik -->
+                </div>
+            </div>
+
+            <!-- Butang Main Semula -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button id="playAgainBtn" class="btn-royal w-full sm:w-auto px-9 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-arcade text-xl font-bold flex items-center justify-center gap-2 cursor-pointer">
+                    <span>🔄 MAIN SEMULA</span>
+                </button>
+                <button id="backToMenuBtn" class="btn-royal w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-white font-arcade text-lg font-bold flex items-center justify-center gap-2 cursor-pointer">
+                    <span>🏠 MENU UTAMA</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kotak Mesej Tersuai (Pengganti alert()) -->
+    <div id="customModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="max-w-md w-full bg-slate-900 border-2 border-amber-400 rounded-3xl p-6 text-center shadow-2xl">
+            <div class="text-4xl mb-3">⚠️</div>
+            <h3 id="modalTitle" class="font-arcade text-2xl font-bold text-amber-300 mb-2">Makluman</h3>
+            <p id="modalMessage" class="text-sm text-slate-200 mb-5 leading-relaxed">Mesej makluman.</p>
+            <button id="modalCloseBtn" class="btn-royal px-6 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-arcade font-bold text-lg cursor-pointer">
+                Faham & Teruskan
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * BANK SOALAN SEJARAH TAHUN 5: TOKOH PEJUANG & PERISTIWA KEMERDEKAAN
+         * ============================================================================
+         */
+        const HISTORY_QUESTIONS = [
+            {
+                topic: "Perjuangan Tokoh Tempatan",
+                prompt: "Siapakah tokoh pahlawan Pahang yang menentang campur tangan British di Semantan?",
+                options: ["Dato' Bahaman", "Tok Janggut", "Rentap", "Mat Salleh"],
+                correct: "Dato' Bahaman",
+                fact: "Dato' Bahaman (Abdul Rahman bin Tuanku Imam Nuh) memimpin kebangkitan menentang British di Lubuk Terua, Semantan, Pahang pada tahun 1891."
+            },
+            {
+                topic: "Perjuangan Tokoh Sarawak",
+                prompt: "Tokoh pahlawan Iban yang terkenal dengan slogan 'Agi Idup Agi Ngelaban' ialah...",
+                options: ["Rentap", "Sharif Masahor", "Rosli Dhoby", "Antenom"],
+                correct: "Rentap",
+                fact: "Rentap (Libau) menentang pemerintahan keluarga Brooke di Sungai Skrang dan Kubu Bukit Sadok demi mempertahankan kedaulatan rakyat Iban."
+            },
+            {
+                topic: "Perjuangan Tokoh Kelantan",
+                prompt: "Siapakah pejuang di Pasir Puteh, Kelantan yang menentang sistem cukai British pada 1915?",
+                options: ["Tok Janggut", "Haji Abdul Rahman Limbong", "Dol Said", "Dato' Maharaja Lela"],
+                correct: "Tok Janggut",
+                fact: "Haji Mat Hassan bin Munas (Tok Janggut) bangkit menentang peraturan cukai baharu British yang membebankan penduduk di Pasir Puteh, Kelantan."
+            },
+            {
+                topic: "Perjuangan Tokoh Perak",
+                prompt: "Siapakah yang terlibat dalam peristiwa pembunuhan Residen British J.W.W. Birch di Pasir Salak?",
+                options: ["Dato' Maharaja Lela", "Yamtuan Antah", "Dol Said", "Dato' Bahaman"],
+                correct: "Dato' Maharaja Lela",
+                fact: "Dato' Maharaja Lela bersama Sepuntum menentang campur tangan J.W.W. Birch dalam adat resam dan kuasa pembesar Melayu di Pasir Salak, Perak (1875)."
+            },
+            {
+                topic: "Detik Kemerdekaan 1957",
+                prompt: "Di manakah lokasi pengisytiharan Kemerdekaan Persekutuan Tanah Melayu pada 31 Ogos 1957?",
+                options: ["Stadium Merdeka", "Padang Bandar Hilir", "Istana Negara", "Dataran Pahlawan"],
+                correct: "Stadium Merdeka",
+                fact: "Tunku Abdul Rahman Putra Al-Haj melaungkan 'Merdeka!' sebanyak 7 kali di Stadium Merdeka, Kuala Lumpur pada pagi 31 Ogos 1957."
+            },
+            {
+                topic: "Bapa Kemerdekaan",
+                prompt: "Siapakah yang mengetuai Rombongan Kemerdekaan ke London pada Januari 1956?",
+                options: ["Tunku Abdul Rahman", "Tun Abdul Razak", "Tun Tan Cheng Lock", "Tun V.T. Sambanthan"],
+                correct: "Tunku Abdul Rahman",
+                fact: "Tunku Abdul Rahman mengetuai wakil Raja-Raja Melayu dan Parti Perikatan ke London dan menandatangani Perjanjian Kemerdekaan pada 8 Februari 1956."
+            },
+            {
+                topic: "Pengisytiharan Tarikh Merdeka",
+                prompt: "Di manakah Tunku Abdul Rahman mengumumkan tarikh kemerdekaan sekembalinya dari London?",
+                options: ["Padang Bandar Hilir, Melaka", "Stadium Merdeka, KL", "Padang Kota Lama, P.Pinang", "Bukit Melawati, Selangor"],
+                correct: "Padang Bandar Hilir, Melaka",
+                fact: "Pada 20 Februari 1956, kepulangan Rombongan Merdeka disambut meriah di Padang Bandar Hilir, Melaka dengan pengumuman tarikh 31 Ogos 1957."
+            },
+            {
+                topic: "Penentangan Malayan Union",
+                prompt: "Siapakah pengasas dan Presiden pertama UMNO yang memimpin penentangan Malayan Union 1946?",
+                options: ["Dato' Onn Jaafar", "Burhanuddin al-Helmy", "Ishak Haji Muhammad", "Ahmad Boestamam"],
+                correct: "Dato' Onn Jaafar",
+                fact: "Dato' Onn Jaafar menyatukan orang Melayu melalui Kongres Melayu 1946 bagi membantah Malayan Union yang menggugat kuasa Raja-Raja Melayu."
+            },
+            {
+                topic: "Perjuangan Tokoh Terengganu",
+                prompt: "Ulama Terengganu yang menentang undang-undang pas kebenaran membuka tanah British ialah...",
+                options: ["Haji Abdul Rahman Limbong", "Tok Ku Paloh", "Tok Janggut", "Syed Sheikh al-Hadi"],
+                correct: "Haji Abdul Rahman Limbong",
+                fact: "Haji Abdul Rahman Limbong menegaskan bahawa tanah ialah hak Allah dan bukannya milik kerajaan British dalam kebangkitan Tani di Terengganu."
+            },
+            {
+                topic: "Perjuangan Tokoh Sabah",
+                prompt: "Siapakah pejuang dari Sabah yang menentang Syarikat Borneo Utara British (SBUB) di Ranau?",
+                options: ["Mat Salleh", "Antenom", "Sharif Masahor", "Rosli Dhoby"],
+                correct: "Mat Salleh",
+                fact: "Datu Paduka Mohammad Salleh (Mat Salleh) mempertahankan kedaulatan Tambunan dan Ranau daripada cukai dan penindasan SBUB."
+            },
+            {
+                topic: "Perjuangan Tokoh Naning",
+                prompt: "Penghulu Naning yang berjaya menewaskan British dalam Perang Naning Pertama (1831) ialah...",
+                options: ["Dol Said", "Yamtuan Antah", "Dato' Kelana", "Raja Mahadi"],
+                correct: "Dol Said",
+                fact: "Dato' Abdul Said (Dol Said) mempertahankan Naning sebagai wilayah merdeka dan enggan membayar cukai satu persepuluh hasil kepada British."
+            },
+            {
+                topic: "Pembentukan Malaysia 1963",
+                prompt: "Bilakah tarikh rasmi pengisytiharan pembentukan Persekutuan Malaysia?",
+                options: ["16 September 1963", "31 Ogos 1957", "1 Februari 1948", "31 Ogos 1963"],
+                correct: "16 September 1963",
+                fact: "Malaysia diisytiharkan secara rasmi pada 16 September 1963 menggabungkan Persekutuan Tanah Melayu, Sabah, Sarawak, dan Singapura."
+            },
+            {
+                topic: "Identiti Kebangsaan",
+                prompt: "Siapakah arkitek Jabatan Kerja Raya yang mencipta bendera Persekutuan Tanah Melayu?",
+                options: ["Mohamed Hamzah", "Saiful Bahri", "Zubir Said", "Hamzah Dolmat"],
+                correct: "Mohamed Hamzah",
+                fact: "Mohamed bin Hamzah memenangi pertandingan mereka cipta bendera kebangsaan pada tahun 1949 yang kini dikenali sebagai Jalur Gemilang."
+            },
+            {
+                topic: "Tokoh Perpaduan Negara",
+                prompt: "Siapakah Presiden MCA yang bekerjasama membentuk Parti Perikatan menuntut kemerdekaan?",
+                options: ["Tun Tan Cheng Lock", "Tun H.S. Lee", "Tun Dr. Ismail", "Tun Leong Yew Koh"],
+                correct: "Tun Tan Cheng Lock",
+                fact: "Tun Tan Cheng Lock bersama Tunku Abdul Rahman dan Tun V.T. Sambanthan membuktikan perpaduan antara kaum menjadi kunci kemerdekaan negara."
+            }
+        ];
+
+        /**
+         * ============================================================================
+         * SISTEM AUDIO TRADISIONAL MODEN (TONE.JS - SKALA PENTATONIK GAMELAN & GONG)
+         * ============================================================================
+         */
+        class HeritageAudio {
+            constructor() {
+                this.muted = false;
+                this.ready = false;
+                this.gongSynth = null;
+                this.gamelanSynth = null;
+            }
+
+            async init() {
+                if (this.ready) return;
+                try {
+                    await Tone.start();
+                    // Bunyi ketukan gong / kenong mendalam
+                    this.gongSynth = new Tone.MembraneSynth({
+                        pitchDecay: 0.06,
+                        octaves: 3,
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.002, decay: 0.35, sustain: 0.02, release: 0.4 }
+                    }).toDestination();
+                    this.gongSynth.volume.value = -4;
+
+                    // Bunyi logam bonang / saron gamelan moden (skala pelog/slendro)
+                    this.gamelanSynth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.005, decay: 0.35, sustain: 0.05, release: 0.5 }
+                    }).toDestination();
+                    this.gamelanSynth.volume.value = -5;
+
+                    this.ready = true;
+                } catch (e) {
+                    console.warn("Audio gagal dimulakan:", e);
+                }
+            }
+
+            playHammerHit() {
+                if (this.muted || !this.ready) return;
+                this.gongSynth.triggerAttackRelease("G2", "8n");
+            }
+
+            playCorrect(combo = 1) {
+                if (this.muted || !this.ready) return;
+                this.playHammerHit();
+                const now = Tone.now();
+                // Melodi pentatonik gamelan naik
+                const scale = ["C5", "D5", "E5", "G5", "A5", "C6"];
+                const offset = Math.min(combo - 1, 2);
+                this.gamelanSynth.triggerAttackRelease(scale[offset], "16n", now);
+                this.gamelanSynth.triggerAttackRelease(scale[offset + 2], "16n", now + 0.07);
+                this.gamelanSynth.triggerAttackRelease(scale[offset + 3], "8n", now + 0.14);
+            }
+
+            playWrong() {
+                if (this.muted || !this.ready) return;
+                this.playHammerHit();
+                const now = Tone.now();
+                this.gamelanSynth.triggerAttackRelease("F3", "8n", now);
+                this.gamelanSynth.triggerAttackRelease("E3", "4n", now + 0.12);
+            }
+
+            playTick() {
+                if (this.muted || !this.ready) return;
+                this.gamelanSynth.triggerAttackRelease("A5", "32n");
+            }
+
+            playEndFanfare() {
+                if (this.muted || !this.ready) return;
+                const now = Tone.now();
+                ["C5", "G4", "A4", "E5", "G5"].forEach((n, idx) => {
+                    this.gamelanSynth.triggerAttackRelease(n, "8n", now + idx * 0.13);
+                });
+            }
+        }
+
+        const audio = new HeritageAudio();
+
+        /**
+         * ============================================================================
+         * PEMBOLEHUBAH KANVAS & KEADAAN PERMAINAN
+         * ============================================================================
+         */
+        const videoEl = document.getElementById("webcamVideo");
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Elemen UI
+        const startScreen = document.getElementById("startScreen");
+        const resultScreen = document.getElementById("resultScreen");
+        const hudLayer = document.getElementById("hudLayer");
+        const scoreDisplay = document.getElementById("scoreDisplay");
+        const comboDisplay = document.getElementById("comboDisplay");
+        const comboBadge = document.getElementById("comboBadge");
+        const timerDisplay = document.getElementById("timerDisplay");
+        const timerBox = document.getElementById("timerBox");
+        const questionText = document.getElementById("questionText");
+        const questionTopicBadge = document.getElementById("questionTopicBadge");
+        const questionCountText = document.getElementById("questionCountText");
+        const feedbackToast = document.getElementById("feedbackToast");
+        const feedbackToastContent = document.getElementById("feedbackToastContent");
+        const handStatusDot = document.getElementById("handStatusDot");
+        const handStatusText = document.getElementById("handStatusText");
+
+        const TOTAL_TIME = 60;
+        let gameState = "MENU"; // MENU, PLAYING, ENDED
+        let score = 0;
+        let combo = 1;
+        let maxCombo = 1;
+        let timeLeft = TOTAL_TIME;
+        let timerInterval = null;
+
+        let questionQueue = [];
+        let currentQuestionIdx = 0;
+        let currentQuestion = null;
+        let sessionHistory = [];
+        let roundTransitioning = false;
+
+        // Entiti Portal Masa, Zarah Emas & Gegaran Skrin
+        let portals = [];
+        let goldParticles = [];
+        let shockwaves = [];
+        let floatingScores = [];
+        let screenShake = { intensity: 0, duration: 0 };
+
+        // Penjejakan Tangan MediaPipe & Penukul Digital
+        let cameraActive = false;
+        let mpHands = null;
+        let handLandmarks = null;
+        let hammer = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            active: false,
+            isStriking: false,
+            strikeAnimProgress: 0, // 0 hingga 1 untuk animasi hayunan penukul
+            gestureLocked: false,
+            cooldown: 0,
+            source: "mouse"
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (gameState === "PLAYING" && portals.length > 0) {
+                repositionPortals();
+            }
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        /**
+         * ============================================================================
+         * INISIALISASI GOOGLE MEDIAPIPE HANDS
+         * ============================================================================
+         */
+        async function initMediaPipe() {
+            const statusText = document.getElementById("cameraInitStatus");
+            try {
+                if (typeof Hands === "undefined") {
+                    throw new Error("CDN MediaPipe Hands tidak dapat dimuatkan.");
+                }
+
+                statusText.textContent = "Mengaktifkan AI penjejakan penukul tangan...";
+
+                mpHands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+
+                mpHands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.65,
+                    minTrackingConfidence: 0.6
+                });
+
+                mpHands.onResults(handleHandResults);
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+                    audio: false
+                });
+                videoEl.srcObject = stream;
+                await videoEl.play();
+
+                cameraActive = true;
+                statusText.textContent = "Kamera & Penukul Digital MediaPipe sedia!";
+                updateHandStatus(false);
+
+                processWebcamLoop();
+            } catch (err) {
+                console.warn("Mod kamera gagal, beralih ke mod sentuh/tetikus:", err);
+                cameraActive = false;
+                statusText.textContent = "Kamera tidak aktif. Mod Tetikus / Sentuh tersedia.";
+                showModal(
+                    "Mod Sandaran Tetikus / Sentuh Diaktifkan",
+                    "Kamera web tidak dikesan atau kebenaran tidak diberikan. Anda masih boleh mengetuk portal masa menggunakan klik tetikus atau sentuhan terus pada skrin!"
+                );
+            }
+        }
+
+        async function processWebcamLoop() {
+            if (cameraActive && videoEl.readyState >= 2 && mpHands) {
+                try {
+                    await mpHands.send({ image: videoEl });
+                } catch (e) {
+                    // Abaikan ralat bingkai sementara
+                }
+            }
+            requestAnimationFrame(processWebcamLoop);
+        }
+
+        function handleHandResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lm = results.multiHandLandmarks[0];
+                handLandmarks = lm;
+                hammer.active = true;
+                hammer.source = "hand";
+
+                // Gunakan Hujung Jari Telunjuk (Landmark 8) sebagai sasaran penukul
+                // Cerminkan paksi-X (1 - x) supaya selari dengan paparan cermin
+                const indexTip = lm[8];
+                const targetX = (1 - indexTip.x) * canvas.width;
+                const targetY = indexTip.y * canvas.height;
+
+                // Pelicinan pergerakan penukul
+                hammer.x += (targetX - hammer.x) * 0.48;
+                hammer.y += (targetY - hammer.y) * 0.48;
+
+                // Pengesanan Isyarat 1: Genggam Tangan (Fist)
+                const wrist = lm[0];
+                const middleMCP = lm[9];
+                const palmSize = Math.hypot(wrist.x - middleMCP.x, wrist.y - middleMCP.y) || 0.15;
+
+                const tips = [8, 12, 16, 20];
+                const pips = [6, 10, 14, 18];
+                let curled = 0;
+                for (let i = 0; i < tips.length; i++) {
+                    const dTip = Math.hypot(lm[tips[i]].x - wrist.x, lm[tips[i]].y - wrist.y);
+                    const dPip = Math.hypot(lm[pips[i]].x - wrist.x, lm[pips[i]].y - wrist.y);
+                    if (dTip < dPip * 1.06) curled++;
+                }
+                const isFist = curled >= 3;
+
+                // Pengesanan Isyarat 2: Cubit (Pinch) antara Ibu Jari (4) & Telunjuk (8)
+                const thumbTip = lm[4];
+                const pinchDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y) / palmSize;
+                const isPinch = pinchDist < 0.34;
+
+                const strikeGesture = isFist || isPinch;
+
+                if (strikeGesture && !hammer.gestureLocked && hammer.cooldown <= 0) {
+                    hammer.gestureLocked = true;
+                    hammer.cooldown = 16;
+                    triggerHammerStrike(hammer.x, hammer.y);
+                } else if (!strikeGesture) {
+                    hammer.gestureLocked = false;
+                }
+
+                updateHandStatus(true, isFist ? "Ketukan Genggam!" : isPinch ? "Ketukan Cubit!" : "Penukul Sedia");
+            } else {
+                handLandmarks = null;
+                updateHandStatus(false);
+            }
+        }
+
+        function updateHandStatus(found, text = "Penukul Sedia") {
+            if (!cameraActive) {
+                handStatusDot.className = "w-2.5 h-2.5 rounded-full bg-sky-400";
+                handStatusText.textContent = "Mod Tetikus / Sentuh";
+                return;
+            }
+            if (found) {
+                handStatusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+                handStatusText.textContent = text;
+            } else {
+                handStatusDot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                handStatusText.textContent = "Angkat Tangan Anda";
+            }
+        }
+
+        /**
+         * ============================================================================
+         * INTERAKSI SANDARAN TETIKUS & SENTUH
+         * ============================================================================
+         */
+        canvas.addEventListener("mousemove", (e) => {
+            if (!handLandmarks) {
+                hammer.x = e.clientX;
+                hammer.y = e.clientY;
+                hammer.active = true;
+                hammer.source = "mouse";
+            }
+        });
+
+        canvas.addEventListener("mousedown", (e) => {
+            hammer.x = e.clientX;
+            hammer.y = e.clientY;
+            hammer.active = true;
+            triggerHammerStrike(hammer.x, hammer.y);
+        });
+
+        canvas.addEventListener("touchstart", (e) => {
+            if (e.touches.length > 0) {
+                const t = e.touches[0];
+                hammer.x = t.clientX;
+                hammer.y = t.clientY;
+                hammer.active = true;
+                triggerHammerStrike(hammer.x, hammer.y);
+            }
+        }, { passive: true });
+
+        /**
+         * ============================================================================
+         * LOGIK PORTAL MASA (WHACK-A-PORTAL) & PENGIRAAN SKOR
+         * ============================================================================
+         */
+        function shuffle(arr) {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        async function startGame() {
+            await audio.init();
+            if (!cameraActive && !mpHands) {
+                await initMediaPipe();
+            }
+
+            score = 0;
+            combo = 1;
+            maxCombo = 1;
+            timeLeft = TOTAL_TIME;
+            sessionHistory = [];
+            goldParticles = [];
+            shockwaves = [];
+            floatingScores = [];
+            questionQueue = shuffle(HISTORY_QUESTIONS);
+            currentQuestionIdx = 0;
+            roundTransitioning = false;
+
+            updateHUD();
+            startScreen.classList.add("hidden");
+            resultScreen.classList.add("hidden");
+            hudLayer.classList.remove("hidden");
+
+            gameState = "PLAYING";
+            spawnQuestionRound();
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (gameState !== "PLAYING") return;
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 10 && timeLeft > 0) {
+                    audio.playTick();
+                }
+
+                if (timeLeft <= 0) {
+                    finishGame();
+                }
+            }, 1000);
+        }
+
+        function spawnQuestionRound() {
+            roundTransitioning = false;
+            if (currentQuestionIdx >= questionQueue.length) {
+                questionQueue = shuffle(HISTORY_QUESTIONS);
+                currentQuestionIdx = 0;
+            }
+
+            currentQuestion = questionQueue[currentQuestionIdx];
+            questionTopicBadge.textContent = `Sejarah Tahun 5 • ${currentQuestion.topic}`;
+            questionCountText.textContent = `Soalan #${sessionHistory.length + 1}`;
+            questionText.textContent = currentQuestion.prompt;
+
+            const shuffledOpts = shuffle(currentQuestion.options);
+            const slots = computePortalSlots(shuffledOpts.length);
+
+            // Tempoh portal terbuka (8.5 saat - cukup masa untuk murid membaca & mengetuk)
+            const portalDuration = 8500;
+            const now = performance.now();
+
+            portals = shuffledOpts.map((optText, idx) => ({
+                text: optText,
+                isCorrect: optText === currentQuestion.correct,
+                x: slots[idx].x,
+                y: slots[idx].y,
+                radius: slots[idx].radius,
+                spawnTime: now + idx * 90, // Kemunculan berperingkat yang bergaya
+                duration: portalDuration,
+                scale: 0,
+                rotation: Math.random() * Math.PI * 2,
+                hit: false,
+                closing: false
+            }));
+        }
+
+        function computePortalSlots(count) {
+            const safeTop = Math.max(215, canvas.height * 0.30);
+            const safeBottom = canvas.height - 65;
+            const areaH = safeBottom - safeTop;
+            const areaW = canvas.width * 0.86;
+            const startX = (canvas.width - areaW) / 2;
+
+            const isMobile = canvas.width < 680;
+            const slots = [];
+
+            if (isMobile) {
+                // Susunan grid 2x2 pada skrin telefon mudah alih
+                const cols = 2;
+                const rows = 2;
+                const cellW = areaW / cols;
+                const cellH = areaH / rows;
+                const r = Math.max(54, Math.min(78, Math.min(cellW, cellH) * 0.38));
+
+                for (let i = 0; i < count; i++) {
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    slots.push({
+                        x: startX + cellW * col + cellW / 2,
+                        y: safeTop + cellH * row + cellH / 2,
+                        radius: r
+                    });
+                }
+            } else {
+                // Susunan melengkung arked 4 portal pada tablet & komputer
+                const slotW = areaW / count;
+                const r = Math.max(66, Math.min(92, slotW * 0.38));
+                for (let i = 0; i < count; i++) {
+                    const arcOffset = (i === 1 || i === 2) ? -22 : 22;
+                    slots.push({
+                        x: startX + slotW * i + slotW / 2,
+                        y: safeTop + areaH * 0.5 + arcOffset,
+                        radius: r
+                    });
+                }
+            }
+            return slots;
+        }
+
+        function repositionPortals() {
+            const slots = computePortalSlots(portals.length);
+            portals.forEach((p, idx) => {
+                if (slots[idx]) {
+                    p.x = slots[idx].x;
+                    p.y = slots[idx].y;
+                    p.radius = slots[idx].radius;
+                }
+            });
+        }
+
+        function triggerHammerStrike(hx, hy) {
+            if (gameState !== "PLAYING") return;
+
+            // Mulakan animasi hayunan penukul digital
+            hammer.isStriking = true;
+            hammer.strikeAnimProgress = 1.0;
+
+            // Kesan gelombang hentakan kecil pada titik ketukan
+            shockwaves.push({
+                x: hx,
+                y: hy,
+                radius: 12,
+                maxRadius: 68,
+                alpha: 0.85,
+                color: "#fbbf24"
+            });
+
+            if (roundTransitioning) return;
+
+            // Semak jika penukul mengena mana-mana portal yang terbuka
+            for (let i = 0; i < portals.length; i++) {
+                const p = portals[i];
+                if (p.hit || p.scale < 0.4) continue;
+
+                const dist = Math.hypot(hx - p.x, hy - p.y);
+                if (dist <= p.radius + 16) {
+                    onPortalStruck(p);
+                    return;
+                }
+            }
+
+            // Jika mengetuk ruang kosong, mainkan bunyi ketukan ringan
+            audio.playHammerHit();
+        }
+
+        function onPortalStruck(portal) {
+            portal.hit = true;
+            roundTransitioning = true;
+
+            // Gegaran skrin & letupan zarah emas
+            triggerScreenShake(portal.isCorrect ? 14 : 9, 16);
+            spawnGoldParticles(portal.x, portal.y, portal.isCorrect ? 42 : 20, portal.isCorrect);
+
+            shockwaves.push({
+                x: portal.x,
+                y: portal.y,
+                radius: portal.radius * 0.4,
+                maxRadius: portal.radius * 2.1,
+                alpha: 1,
+                color: portal.isCorrect ? "#fbbf24" : "#ef4444"
+            });
+
+            if (portal.isCorrect) {
+                const earned = 100 * combo;
+                score += earned;
+                audio.playCorrect(combo);
+
+                showToast(`TEPAT! +${earned}`, true);
+                floatingScores.push({
+                    x: portal.x,
+                    y: portal.y - 20,
+                    text: `+${earned}`,
+                    color: "#fbbf24",
+                    alpha: 1
+                });
+
+                sessionHistory.push({
+                    prompt: currentQuestion.prompt,
+                    userAnswer: portal.text,
+                    correctAnswer: currentQuestion.correct,
+                    isCorrect: true,
+                    timedOut: false,
+                    fact: currentQuestion.fact
+                });
+
+                combo++;
+                if (combo > maxCombo) maxCombo = combo;
+            } else {
+                audio.playWrong();
+                combo = 1;
+
+                showToast("KURANG TEPAT!", false);
+                floatingScores.push({
+                    x: portal.x,
+                    y: portal.y - 20,
+                    text: "Salah!",
+                    color: "#f87171",
+                    alpha: 1
+                });
+
+                sessionHistory.push({
+                    prompt: currentQuestion.prompt,
+                    userAnswer: portal.text,
+                    correctAnswer: currentQuestion.correct,
+                    isCorrect: false,
+                    timedOut: false,
+                    fact: currentQuestion.fact
+                });
+            }
+
+            updateHUD();
+
+            // Tutup semua portal & muatkan soalan seterusnya
+            setTimeout(() => {
+                if (gameState === "PLAYING") {
+                    currentQuestionIdx++;
+                    spawnQuestionRound();
+                }
+            }, 850);
+        }
+
+        function handlePortalTimeout() {
+            if (roundTransitioning || gameState !== "PLAYING") return;
+            roundTransitioning = true;
+            combo = 1;
+            audio.playWrong();
+            updateHUD();
+
+            showToast("PORTAL TERTUTUP!", false);
+
+            sessionHistory.push({
+                prompt: currentQuestion.prompt,
+                userAnswer: "Tiada ketukan (Masa portal tamat)",
+                correctAnswer: currentQuestion.correct,
+                isCorrect: false,
+                timedOut: true,
+                fact: currentQuestion.fact
+            });
+
+            setTimeout(() => {
+                if (gameState === "PLAYING") {
+                    currentQuestionIdx++;
+                    spawnQuestionRound();
+                }
+            }, 850);
+        }
+
+        function triggerScreenShake(intensity, frames) {
+            screenShake.intensity = intensity;
+            screenShake.duration = frames;
+        }
+
+        function spawnGoldParticles(x, y, count = 35, isGoldRich = true) {
+            const palette = isGoldRich
+                ? ["#fbbf24", "#f59e0b", "#fef08a", "#ffffff", "#34d399"]
+                : ["#ef4444", "#fca5a5", "#94a3b8"];
+
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+                const speed = 3 + Math.random() * 8.5;
+                goldParticles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1.5,
+                    size: 3 + Math.random() * 5.5,
+                    color: palette[Math.floor(Math.random() * palette.length)],
+                    alpha: 1,
+                    decay: 0.018 + Math.random() * 0.018,
+                    gravity: 0.18,
+                    isStar: Math.random() > 0.45
+                });
+            }
+        }
+
+        function showToast(text, success) {
+            feedbackToastContent.textContent = text;
+            feedbackToastContent.className = success
+                ? "px-7 py-3.5 rounded-3xl font-arcade text-2xl sm:text-4xl font-bold shadow-2xl border-4 text-center bg-amber-950/95 border-amber-400 text-amber-300"
+                : "px-7 py-3.5 rounded-3xl font-arcade text-2xl sm:text-4xl font-bold shadow-2xl border-4 text-center bg-rose-950/95 border-rose-500 text-rose-200";
+
+            feedbackToast.classList.remove("opacity-0", "scale-75");
+            feedbackToast.classList.add("opacity-100", "scale-100");
+
+            setTimeout(() => {
+                feedbackToast.classList.remove("opacity-100", "scale-100");
+                feedbackToast.classList.add("opacity-0", "scale-75");
+            }, 650);
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = score.toLocaleString();
+            comboDisplay.textContent = `x${combo}`;
+            if (combo >= 2) {
+                comboBadge.classList.remove("hidden");
+            } else {
+                comboBadge.classList.add("hidden");
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            timerDisplay.textContent = `${timeLeft}s`;
+            if (timeLeft <= 10) {
+                timerBox.classList.remove("border-amber-400/60");
+                timerBox.classList.add("border-rose-500", "bg-rose-950/90");
+                timerDisplay.classList.add("text-rose-400");
+            } else {
+                timerBox.classList.add("border-amber-400/60");
+                timerBox.classList.remove("border-rose-500", "bg-rose-950/90");
+                timerDisplay.classList.remove("text-rose-400");
+            }
+        }
+
+        /**
+         * ============================================================================
+         * SKRIN KEPUTUSAN & LAPORAN FAKTA SEJARAH RINGKAS
+         * ============================================================================
+         */
+        function finishGame() {
+            gameState = "ENDED";
+            clearInterval(timerInterval);
+            audio.playEndFanfare();
+
+            hudLayer.classList.add("hidden");
+            resultScreen.classList.remove("hidden");
+
+            const total = sessionHistory.length;
+            const correctCount = sessionHistory.filter(item => item.isCorrect).length;
+            const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+            document.getElementById("finalScore").textContent = score.toLocaleString();
+            document.getElementById("finalCorrect").textContent = `${correctCount} / ${total}`;
+            document.getElementById("finalAccuracy").textContent = `${accuracy}%`;
+            document.getElementById("finalMaxCombo").textContent = `x${maxCombo}`;
+
+            const rankBadge = document.getElementById("rankBadge");
+            if (score >= 1000 && accuracy >= 80) {
+                rankBadge.textContent = "👑 LAKSAMANA PENJAGA SEJARAH";
+            } else if (score >= 500) {
+                rankBadge.textContent = "🛡️ PENDEKAR WARISAN NEGARA";
+            } else if (total > 0) {
+                rankBadge.textContent = "📜 PERANTIS SEJARAH TAHUN 5";
+            } else {
+                rankBadge.textContent = "🔨 TERUSKAN USAHA PENJAGA SEJARAH!";
+            }
+
+            renderHistoryAnalysis();
+        }
+
+        function renderHistoryAnalysis() {
+            const container = document.getElementById("analysisList");
+            container.innerHTML = "";
+
+            if (sessionHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-5 text-center text-slate-300 text-sm">
+                        Tiada portal masa diketuk pada sesi ini. Tekan <strong>Main Semula</strong> untuk menguji ilmu Sejarah anda!
+                    </div>
+                `;
+                return;
+            }
+
+            sessionHistory.forEach((item, index) => {
+                const card = document.createElement("div");
+                const cardTheme = item.isCorrect
+                    ? "border-emerald-500/40 bg-emerald-950/25"
+                    : "border-rose-500/40 bg-rose-950/25";
+
+                const badgeHtml = item.isCorrect
+                    ? `<span class="text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2.5 py-0.5 rounded-full">✓ Tepat</span>`
+                    : `<span class="text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-400/40 px-2.5 py-0.5 rounded-full">${item.timedOut ? '⌛ Masa Portal Tamat' : '✗ Salah'}</span>`;
+
+                card.className = `border ${cardTheme} rounded-2xl p-3.5 sm:p-4 text-left`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-xs font-bold text-amber-300">Soalan ${index + 1}</span>
+                        ${badgeHtml}
+                    </div>
+                    <p class="text-sm font-bold text-white mb-2">${item.prompt}</p>
+                    <div class="flex flex-wrap gap-2 text-xs mb-2.5">
+                        <span class="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-700">
+                            Ketukan Anda: <strong class="${item.isCorrect ? 'text-emerald-400' : 'text-rose-400'}">${item.userAnswer}</strong>
+                        </span>
+                        ${!item.isCorrect ? `
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40">
+                            Jawapan Tepat: <strong class="text-emerald-300">${item.correctAnswer}</strong>
+                        </span>` : ""}
+                    </div>
+                    <p class="text-xs text-amber-100/90 bg-slate-950/65 rounded-xl px-3 py-2 border border-amber-500/25 leading-relaxed">
+                        📜 <strong>Fakta Sejarah Ringkas:</strong> ${item.fact}
+                    </p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        /**
+         * ============================================================================
+         * GELUNG RENDER KANVAS (WEBCAM + LANDMARKS + PORTAL MASA + PENUKUL EMAS)
+         * ============================================================================
+         */
+        function renderLoop(timestamp) {
+            ctx.save();
+
+            // Terapkan kesan gegaran skrin (Screen Shake) jika aktif
+            if (screenShake.duration > 0) {
+                const dx = (Math.random() - 0.5) * screenShake.intensity * 2;
+                const dy = (Math.random() - 0.5) * screenShake.intensity * 2;
+                ctx.translate(dx, dy);
+                screenShake.duration--;
+                screenShake.intensity *= 0.92;
+            }
+
+            ctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
+
+            // 1. Latar Belakang Webcam Masa Nyata (Dicerminkan) atau Latar Warisan Gelap
+            if (cameraActive && videoEl.readyState >= 2) {
+                ctx.save();
+                const vRatio = videoEl.videoWidth / videoEl.videoHeight;
+                const cRatio = canvas.width / canvas.height;
+                let drawW = canvas.width;
+                let drawH = canvas.height;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                if (cRatio > vRatio) {
+                    drawH = canvas.width / vRatio;
+                    offsetY = (canvas.height - drawH) / 2;
+                } else {
+                    drawW = canvas.height * vRatio;
+                    offsetX = (canvas.width - drawW) / 2;
+                }
+
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(videoEl, offsetX, offsetY, drawW, drawH);
+                ctx.restore();
+
+                // Tindihan nuansa diraja gelap supaya portal emas & teks amat jelas
+                ctx.fillStyle = "rgba(9, 13, 28, 0.42)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                const bgGrad = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 60,
+                    canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.8
+                );
+                bgGrad.addColorStop(0, "#1e1b4b");
+                bgGrad.addColorStop(0.6, "#170f2e");
+                bgGrad.addColorStop(1, "#070a12");
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // 2. Lukis Landmarks Tangan MediaPipe
+            if (handLandmarks) {
+                drawHandLandmarks(handLandmarks);
+            }
+
+            // 3. Kemas Kini & Lukis Portal Masa
+            if (gameState === "PLAYING") {
+                updateAndDrawPortals(timestamp || performance.now());
+            }
+
+            // 4. Lukis Gelombang Hentakan (Shockwaves) & Zarah Emas
+            updateAndDrawShockwaves();
+            updateAndDrawGoldParticles();
+            updateAndDrawFloatingScores();
+
+            // 5. Lukis Penukul Digital pada Hujung Jari Telunjuk
+            if (hammer.active && gameState === "PLAYING") {
+                drawDigitalHammer(hammer.x, hammer.y);
+            }
+
+            if (hammer.cooldown > 0) hammer.cooldown--;
+            if (hammer.strikeAnimProgress > 0) {
+                hammer.strikeAnimProgress = Math.max(0, hammer.strikeAnimProgress - 0.12);
+                if (hammer.strikeAnimProgress === 0) hammer.isStriking = false;
+            }
+
+            ctx.restore();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawHandLandmarks(lm) {
+            ctx.save();
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],
+                [9,13],[13,14],[14,15],[15,16],
+                [13,17],[0,17],[17,18],[18,19],[19,20]
+            ];
+
+            ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
+            ctx.lineWidth = 3;
+            connections.forEach(([a, b]) => {
+                ctx.beginPath();
+                ctx.moveTo((1 - lm[a].x) * canvas.width, lm[a].y * canvas.height);
+                ctx.lineTo((1 - lm[b].x) * canvas.width, lm[b].y * canvas.height);
+                ctx.stroke();
+            });
+
+            lm.forEach((pt, idx) => {
+                ctx.beginPath();
+                ctx.arc((1 - pt.x) * canvas.width, pt.y * canvas.height, idx === 8 ? 7 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = idx === 8 ? "#fbbf24" : "#f87171";
+                ctx.fill();
+            });
+            ctx.restore();
+        }
+
+        function updateAndDrawPortals(now) {
+            let anyExpired = false;
+
+            portals.forEach(p => {
+                if (p.hit) return;
+
+                const elapsed = now - p.spawnTime;
+                if (elapsed < 0) return; // Belum tiba giliran muncul
+
+                const remainingRatio = Math.max(0, 1 - elapsed / p.duration);
+
+                // Jika masa portal habis sebelum diketuk
+                if (remainingRatio <= 0 && !roundTransitioning) {
+                    anyExpired = true;
+                }
+
+                // Animasi buka portal & mengecil apabila hampir tertutup
+                if (elapsed < 280) {
+                    p.scale = elapsed / 280;
+                } else if (remainingRatio < 0.15) {
+                    p.scale = Math.max(0.15, remainingRatio / 0.15);
+                } else {
+                    p.scale = 1;
+                }
+
+                p.rotation += 0.025;
+
+                const isHovered = hammer.active && Math.hypot(hammer.x - p.x, hammer.y - p.y) <= p.radius + 16;
+                const r = p.radius * p.scale * (isHovered ? 1.07 : 1);
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+
+                // Pusaran Cahaya Portal Masa (Vortex Rings)
+                ctx.shadowColor = isHovered ? "#fde047" : "#f59e0b";
+                ctx.shadowBlur = isHovered ? 32 : 18;
+
+                // Gelung luar portal berputar
+                ctx.save();
+                ctx.rotate(p.rotation);
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.strokeStyle = isHovered ? "#fef08a" : "#fbbf24";
+                ctx.lineWidth = isHovered ? 6 : 4;
+                ctx.setLineDash([16, 10]);
+                ctx.stroke();
+                ctx.restore();
+
+                // Teras gelap portal bercahaya indigo-emas
+                const coreGrad = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 0.92);
+                coreGrad.addColorStop(0, "#312e81");
+                coreGrad.addColorStop(0.7, "#1e1b4b");
+                coreGrad.addColorStop(1, "#78350f");
+
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+                ctx.fillStyle = coreGrad;
+                ctx.fill();
+
+                // Gelung Pemasa Portal (Menunjukkan baki masa sebelum portal tertutup)
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.84, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * remainingRatio);
+                ctx.strokeStyle = remainingRatio > 0.3 ? "#34d399" : "#ef4444";
+                ctx.lineWidth = 5;
+                ctx.stroke();
+
+                // Paparan Teks Jawapan di Tengah Portal (Sokong 2 baris jika nama tokoh panjang)
+                const fontSize = Math.max(14, Math.min(20, Math.floor(r * 0.25)));
+                ctx.font = `700 ${fontSize}px 'Fredoka', sans-serif`;
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                wrapPortalText(ctx, p.text, 0, 0, r * 1.48, fontSize + 4);
+
+                ctx.restore();
+            });
+
+            if (anyExpired && !roundTransitioning) {
+                handlePortalTimeout();
+            }
+        }
+
+        function wrapPortalText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(" ");
+            if (words.length <= 2 && context.measureText(text).width <= maxWidth) {
+                context.fillText(text, x, y, maxWidth);
+                return;
+            }
+
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const testLine = currentLine + " " + words[i];
+                if (context.measureText(testLine).width <= maxWidth) {
+                    currentLine = testLine;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
+            }
+            lines.push(currentLine);
+
+            const totalHeight = lines.length * lineHeight;
+            let startY = y - totalHeight / 2 + lineHeight / 2;
+            lines.forEach(line => {
+                context.fillText(line, x, startY, maxWidth);
+                startY += lineHeight;
+            });
+        }
+
+        function drawDigitalHammer(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Sudut hayunan penukul apabila mengetuk (-45 darjah ke +15 darjah)
+            const swingAngle = hammer.isStriking
+                ? -0.25 + Math.sin(hammer.strikeAnimProgress * Math.PI) * 0.85
+                : -0.35;
+
+            // Sasaran titik ketukan tepat pada (0, 0)
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fillStyle = hammer.isStriking ? "#ef4444" : "rgba(251, 191, 36, 0.85)";
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Lukis Ikon Penukul Emas Diraja di sebelah titik sasaran
+            ctx.rotate(swingAngle);
+
+            // Pemegang Penukul
+            ctx.fillStyle = "#92400e";
+            ctx.strokeStyle = "#fef08a";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(10, -5, 44, 10, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            // Kepala Penukul Emas
+            const headGrad = ctx.createLinearGradient(0, -24, 0, 24);
+            headGrad.addColorStop(0, "#fde047");
+            headGrad.addColorStop(0.5, "#f59e0b");
+            headGrad.addColorStop(1, "#b45309");
+
+            ctx.fillStyle = headGrad;
+            ctx.shadowColor = "rgba(245, 158, 11, 0.7)";
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.roundRect(-6, -24, 24, 48, 6);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function updateAndDrawShockwaves() {
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const sw = shockwaves[i];
+                sw.radius += (sw.maxRadius - sw.radius) * 0.22;
+                sw.alpha -= 0.055;
+                if (sw.alpha <= 0) {
+                    shockwaves.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = sw.alpha;
+                ctx.beginPath();
+                ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = sw.color;
+                ctx.lineWidth = 5;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function updateAndDrawGoldParticles() {
+            for (let i = goldParticles.length - 1; i >= 0; i--) {
+                const p = goldParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    goldParticles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+
+                if (p.isStar) {
+                    // Zarah berlian / bintang emas berkilau
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.alpha * 5);
+                    ctx.fillRect(-p.size, -p.size, p.size * 2, p.size * 2);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function updateAndDrawFloatingScores() {
+            for (let i = floatingScores.length - 1; i >= 0; i--) {
+                const fs = floatingScores[i];
+                fs.y -= 2.2;
+                fs.alpha -= 0.02;
+                if (fs.alpha <= 0) {
+                    floatingScores.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = fs.alpha;
+                ctx.font = "700 30px 'Fredoka', sans-serif";
+                ctx.textAlign = "center";
+                ctx.strokeStyle = "#090d16";
+                ctx.lineWidth = 5;
+                ctx.strokeText(fs.text, fs.x, fs.y);
+                ctx.fillStyle = fs.color;
+                ctx.fillText(fs.text, fs.x, fs.y);
+                ctx.restore();
+            }
+        }
+
+        /**
+         * ============================================================================
+         * PENGENDALI ACARA BUTANG & MODAL
+         * ============================================================================
+         */
+        function showModal(title, msg) {
+            document.getElementById("modalTitle").textContent = title;
+            document.getElementById("modalMessage").textContent = msg;
+            document.getElementById("customModal").classList.remove("hidden");
+        }
+
+        document.getElementById("modalCloseBtn").addEventListener("click", () => {
+            document.getElementById("customModal").classList.add("hidden");
+        });
+
+        document.getElementById("startGameBtn").addEventListener("click", startGame);
+        document.getElementById("playAgainBtn").addEventListener("click", startGame);
+
+        document.getElementById("backToMenuBtn").addEventListener("click", () => {
+            resultScreen.classList.add("hidden");
+            hudLayer.classList.add("hidden");
+            startScreen.classList.remove("hidden");
+            gameState = "MENU";
+        });
+
+        document.getElementById("quitBtn").addEventListener("click", () => {
+            if (gameState === "PLAYING") finishGame();
+        });
+
+        document.getElementById("muteBtn").addEventListener("click", () => {
+            audio.muted = !audio.muted;
+            document.getElementById("muteIcon").textContent = audio.muted ? "🔇" : "🔊";
+        });
+
+        window.onload = function () {
+            renderLoop();
+            initMediaPipe();
+        };
+    </script>
+</body>
+</html>
